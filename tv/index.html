@@ -208,7 +208,7 @@ function layDuLieu(){
 function xuLy(j){
   if (!j || !j.ok){ baoLoi(j && j.loi === 'SAI_KHOA' ? 'KHOA' : 'MAY_CHU'); return; }
   LECH = j.gioMayChu - Date.now();
-  D = j; lanCuoiOk = Date.now(); dangLoi = '';
+  D = j; lanCuoiOk = Date.now(); dangLoi = ''; soLanHong = 0;
   document.getElementById('dlTxt').textContent = j.dungLuc;
   document.getElementById('tenDv').textContent = j.donVi || 'Phòng';
   var d0 = new Date(j.tuan + 'T00:00:00'), d6 = new Date(j.cuoiTuan + 'T00:00:00');
@@ -222,7 +222,15 @@ function soTuan(d){   // tuần ISO
   var dau = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   return Math.ceil(((t - dau) / 864e5 + 1) / 7);
 }
-function baoLoi(loai){ dangLoi = loai; capNhatTrangThai(); }
+// Một lần hỏng lẻ (Google thỉnh thoảng trả trang lỗi khi vừa khởi động lại) thì thử lại sau 30 giây, 1 phút, 2 phút...
+// chứ không đợi tới lượt 5 phút. Sai khoá thì không thử lại dồn dập.
+var henThuLai = null, soLanHong = 0;
+function baoLoi(loai){
+  dangLoi = loai; capNhatTrangThai();
+  if (loai === 'KHOA' || giaMatMang || henThuLai) return;
+  var cho = Math.min(30000 * Math.pow(2, soLanHong++), 4 * 60 * 1000);
+  henThuLai = setTimeout(function(){ henThuLai = null; layDuLieu(); }, cho);
+}
 function capNhatTrangThai(){
   var el = document.getElementById('canhBao'), dot = document.getElementById('dot');
   var cu = lanCuoiOk && (Date.now() - lanCuoiOk > 12 * 60 * 1000);
@@ -231,7 +239,7 @@ function capNhatTrangThai(){
   else if (dangLoi === 'KHOA') txt = 'Khoá không đúng hoặc đã được đổi. Nhập lại đường dẫn mới cho tivi.';
   else if (!D && dangLoi) txt = 'Chưa lấy được dữ liệu. Đang thử lại…';
   else if (!D) txt = 'Đang tải dữ liệu…';
-  else if (dangLoi || cu) txt = 'Mất kết nối. Màn hình đang hiện dữ liệu lúc ' + D.dungLuc + ', sẽ tự cập nhật khi có mạng.';
+  else if (cu) txt = 'Mất kết nối. Màn hình đang hiện dữ liệu lúc ' + D.dungLuc + ', sẽ tự cập nhật khi có mạng.';
   el.textContent = txt ? '⚠ ' + txt : '';
   el.className = 'canhbao' + (txt ? ' on' : '');
   dot.style.background = txt ? 'var(--red)' : 'var(--green)';
