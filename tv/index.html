@@ -112,6 +112,12 @@ body{font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;color:var(--in
 
 .canhbao{display:none;position:absolute;left:0;right:0;bottom:48px;height:64px;background:#fdecec;border-top:3px solid var(--red);color:#991b1b;font-size:26px;font-weight:700;align-items:center;padding:0 40px;z-index:4}
 .canhbao.on{display:flex}
+/* Thanh công cụ thử: chỉ hiện ở môi trường TEST (&m=test) */
+.congcu{display:none;position:absolute;left:50%;top:18px;transform:translateX(-50%);gap:10px;align-items:center;z-index:6;background:#fff7e6;border:2px solid #d97706;border-radius:14px;padding:8px 12px}
+.congcu .nhanthu{font-size:18px;font-weight:800;color:#b45309;letter-spacing:.06em;padding:0 6px}
+.congcu button{font:600 18px "Be Vietnam Pro",system-ui,sans-serif;background:#fff;color:#1f2a44;border:1px solid #e6c48f;border-radius:10px;padding:8px 14px;cursor:pointer}
+.congcu button:focus{outline:3px solid #0e8a48}
+.congcu button.on{background:#dc2626;color:#fff;border-color:#dc2626}
 </style>
 </head>
 <body>
@@ -125,6 +131,9 @@ body{font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;color:var(--in
     <div id="than"></div>
   </div></div>
   <div id="canhBao" class="canhbao"></div>
+  <div id="congCuThu" class="congcu"><span class="nhanthu">BẢN THỬ · dữ liệu TEST</span>
+    <button id="cTruoc">◀ Trang</button><button id="cSau">Trang ▶</button>
+    <button id="cBao">🔔 Thử báo họp</button><button id="cMang">📶 Giả lập mất mạng</button><button id="cLai">🔄 Tải lại dữ liệu</button></div>
   <div class="chan"><div class="tiendo" id="tienDo"></div>
     <span><span class="dot" id="dot"></span>Dữ liệu lúc <span id="dlTxt">--:--</span></span>
     <span class="chuthich">
@@ -183,24 +192,18 @@ var LECH = 0;
 function bayGio(){ return new Date(Date.now() + LECH); }
 
 /* ===== DỮ LIỆU ===== */
-var D = null, lanCuoiOk = 0, dangLoi = '';
-// fetch (Apps Script có Access-Control-Allow-Origin: *, đo 30/09); lỗi thì thử JSONP.
+var D = null, lanCuoiOk = 0, dangLoi = '', soLanGoi = 0, giaMatMang = false;
+// fetch thẳng tới Apps Script (có Access-Control-Allow-Origin: *, đo 30/09). Mỗi lần gọi mang số thứ tự: câu trả lời
+// về muộn của lần gọi CŨ không được ghi đè dữ liệu mới hơn (hội đồng 30/09).
 function layDuLieu(){
+  if (giaMatMang){ baoLoi('MANG'); return; }
+  var so = ++soLanGoi, xong = false;
   var url = EXEC[MT] + '?tv=1&key=' + encodeURIComponent(KHOA) + '&_=' + Date.now();
-  var xong = false;
-  function nhan(j){ if (xong) return; xong = true; xuLy(j); }
-  function hong(){ if (xong) return; jsonp(url, nhan, function(){ if (!xong){ xong = true; baoLoi('MANG'); } }); }
-  if (window.fetch){
-    fetch(url, { cache: 'no-store' }).then(function(r){ return r.json(); }).then(nhan).catch(hong);
-  } else hong();
-  setTimeout(function(){ if (!xong){ xong = true; baoLoi('MANG'); } }, 60000);
-}
-function jsonp(url, ok, loi){
-  var ten = 'tvcb' + Date.now(), s = document.createElement('script');
-  window[ten] = function(j){ delete window[ten]; s.remove(); ok(j); };
-  s.onerror = function(){ delete window[ten]; s.remove(); loi(); };
-  s.src = url + '&callback=' + ten;
-  document.head.appendChild(s);
+  function ket(){ if (xong || so !== soLanGoi) return false; xong = true; return true; }
+  fetch(url, { cache: 'no-store' }).then(function(r){ return r.json(); })
+    .then(function(j){ if (ket()) xuLy(j); })
+    .catch(function(){ if (ket()) baoLoi('MANG'); });
+  setTimeout(function(){ if (ket()) baoLoi('MANG'); }, 60000);
 }
 function xuLy(j){
   if (!j || !j.ok){ baoLoi(j && j.loi === 'SAI_KHOA' ? 'KHOA' : 'MAY_CHU'); return; }
@@ -319,7 +322,8 @@ function nhip(){
   document.getElementById('gioTxt').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
   document.getElementById('ngayTxt').textContent = THU[now.getDay()] + ', ' + pad(now.getDate()) + '/' + pad(now.getMonth()+1) + '/' + now.getFullYear();
   var n = ngayCua(now);
-  if (D && n !== ngayDangVe){ ngayDangVe = n; if (n > D.cuoiTuan) layDuLieu(); else veLai(); }   // qua nửa đêm / sang tuần
+  // Qua nửa đêm: vẽ lại ngay (dòng HÔM NAY chuyển) rồi lấy dữ liệu mới vì tình trạng "quá hạn" do máy chủ tính theo ngày.
+  if (D && n !== ngayDangVe){ var dau = !ngayDangVe; ngayDangVe = n; if (n <= D.cuoiTuan) veLai(); if (!dau) layDuLieu(); }
   var da = bayMs - batDau;
   document.getElementById('tienDo').style.width = trang.length > 1 ? Math.min(100, da / DUNG_TRANG_MS * 100) + '%' : '0';
   if (trang.length > 1 && da >= DUNG_TRANG_MS) hien(viTri + 1);
@@ -401,13 +405,27 @@ function kiemBao(){
   });
 }
 document.getElementById('tb').onclick = function(){ this.classList.remove('on'); if (window.speechSynthesis) speechSynthesis.cancel(); };
-// Thử thông báo: thêm &thu=1 vào sau # rồi bấm phím T trên bàn phím (chỉ để kiểm tra lúc lắp đặt).
-document.addEventListener('keydown', function(e){
-  if (TS.thu && (e.key === 't' || e.key === 'T') && D){
-    var s = D.suKien[D.suKien.length - 1] || { t: ngayCua(bayGio()) + ' 14:00', nd: 'Cuộc họp thử', dd: 'Phòng họp', ct: '', tp: '' };
-    moLoa(); baoTruoc(s, 10);
-  }
-});
+/* ===== THANH CÔNG CỤ THỬ: chỉ hiện ở môi trường TEST (&m=test), để nhân viên kiểm tra khi lắp đặt ===== */
+function thuBaoHop(){
+  var now = bayGio(), homNay = ngayCua(now), phut = now.getHours() * 60 + now.getMinutes();
+  var ds = D ? D.suKien.filter(function(s){ return s.t.slice(0,10) === homNay; }) : [];
+  var s = ds.filter(function(x){ return +x.t.slice(11,13) * 60 + +x.t.slice(14,16) > phut; })[0] || ds[ds.length - 1] ||
+    (D && D.suKien[0]) || { t: homNay + ' 14:00', nd: 'Cuộc họp thử', dd: 'Phòng họp', ct: 'Trưởng phòng', tp: 'Toàn thể cán bộ Phòng' };
+  moLoa(); baoTruoc(s, 10);
+}
+if (MT === 'test'){
+  var tb = document.getElementById('congCuThu');
+  tb.style.display = 'flex';
+  document.getElementById('cTruoc').onclick = function(){ hien(viTri - 1); };
+  document.getElementById('cSau').onclick = function(){ hien(viTri + 1); };
+  document.getElementById('cBao').onclick = thuBaoHop;
+  document.getElementById('cLai').onclick = function(){ layDuLieu(); };
+  document.getElementById('cMang').onclick = function(){
+    giaMatMang = !giaMatMang; this.classList.toggle('on', giaMatMang);
+    this.textContent = giaMatMang ? '📶 Bật lại mạng' : '📶 Giả lập mất mạng';
+    if (giaMatMang){ lanCuoiOk = Date.now() - 13 * 60 * 1000; baoLoi('MANG'); } else layDuLieu();
+  };
+}
 
 /* ===== KHỞI ĐỘNG ===== */
 function vuaKhung(){
@@ -425,7 +443,11 @@ function batDauChay(){
   setInterval(kiemBao, 15000);
   setInterval(capNhatTrangThai, 30000);
 }
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(batDauChay); else batDauChay();
+// Chờ phông tải xong để đo chiều cao dòng cho đúng, nhưng tối đa 3 giây (mạng kém lúc khởi động thì vẫn chạy).
+var daChay = false;
+function chayMotLan(){ if (!daChay){ daChay = true; batDauChay(); } }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(chayMotLan);
+setTimeout(chayMotLan, 3000);
 </script>
 
 </body>
