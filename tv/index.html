@@ -124,6 +124,20 @@ body{font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;color:var(--in
 .nhapma button:focus{outline:5px solid #f59e0b}
 .nhapma .loi{font-size:28px;color:var(--red);font-weight:700;margin-top:20px;min-height:40px}
 .nhapma .gc{font-size:24px;color:var(--muted);margin-top:8px}
+.nutcd{font:700 19px "Be Vietnam Pro",sans-serif;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:5px 12px;cursor:pointer}
+.caidat{display:none;position:absolute;inset:0;background:rgba(10,40,24,.6);z-index:9;align-items:center;justify-content:center}
+.caidat.on{display:flex}
+.caidat .k{width:1560px;max-height:1000px;overflow:auto;background:#fff;border-radius:28px;border-top:16px solid var(--brand);padding:36px 48px}
+.caidat h1{font-size:44px;font-weight:800;margin-bottom:18px}
+.cdd{display:flex;align-items:center;gap:24px;padding:14px 0;border-top:1px solid var(--line)}
+.cdn{width:420px;font-size:26px;font-weight:700}
+.cdc{flex:1;display:flex;flex-wrap:wrap;gap:10px}
+.cdo{font:600 24px "Be Vietnam Pro",sans-serif;background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:10px 20px;cursor:pointer}
+.cdo.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.cdo:focus,.cdnut button:focus{outline:4px solid #f59e0b}
+.cdnut{display:flex;gap:16px;justify-content:flex-end;margin-top:22px}
+.cdnut button{font:800 28px "Be Vietnam Pro",sans-serif;border:0;border-radius:14px;padding:14px 36px;cursor:pointer;background:var(--bg);color:var(--ink)}
+.cdnut button.chinh{background:var(--brand);color:#fff}
 .congcu{display:none;position:absolute;right:40px;bottom:124px;gap:10px;box-shadow:0 6px 24px rgba(20,29,58,.18);align-items:center;z-index:6;background:#fff7e6;border:2px solid #d97706;border-radius:14px;padding:8px 12px}
 .congcu .nhanthu{font-size:18px;font-weight:800;color:#b45309;letter-spacing:.06em;padding:0 6px}
 .congcu button{white-space:nowrap;font:600 18px "Be Vietnam Pro",system-ui,sans-serif;background:#fff;color:#1f2a44;border:1px solid #e6c48f;border-radius:10px;padding:8px 14px;cursor:pointer}
@@ -142,6 +156,11 @@ body{font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;color:var(--in
     <div id="than"></div>
   </div></div>
   <div id="canhBao" class="canhbao"></div>
+  <div id="caiDat" class="caidat"><div class="k">
+    <h1>⚙ Cài đặt bảng tin</h1>
+    <div id="cdThan"></div>
+    <div class="cdnut"><button id="cdMacDinh">Về mặc định</button><button id="cdThu">🔔 Nghe thử</button><button id="cdLuu" class="chinh">Lưu và đóng</button></div>
+  </div></div>
   <div id="nhapMa" class="nhapma"><div class="k">
     <h1>Nhập mã bảng tin</h1><div class="mt" id="nmMt"></div>
     <input id="nmO" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
@@ -161,6 +180,7 @@ body{font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;color:var(--in
       <span><i style="background:var(--muted)"></i>Chờ duyệt</span>
     </span>
     <span id="loaTxt" class="loa"></span>
+    <button id="nutCaiDat" class="nutcd">⚙ Cài đặt</button>
     <span class="tr" id="trangTxt"></span>
   </div>
   <div id="tb" class="tb"><div class="tbk">
@@ -182,7 +202,15 @@ var EXEC = {
   prod: 'https://script.google.com/macros/s/AKfycbyCDlE8SyDBBtWhlWbGjTNGXH5DVld658xiPIso3ky074v6DnWlmoC7CES9mMqhPh-44w/exec',
   test: 'https://script.google.com/macros/s/AKfycbwGjD7c-7zrntBkjVkHGNIik8NpUcvxymgbhEBi6OwXPsPhRoloLCocFBA0HV3nu63upw/exec'
 };
-var LAM_MOI_MS = 5 * 60 * 1000, DUNG_TRANG_MS = 20000, TRUOC_PHUT = 10;
+var LAM_MOI_MS = 5 * 60 * 1000;
+/* ===== CÀI ĐẶT (lưu trên chính tivi, localStorage) — chủ dự án yêu cầu 30/09: chọn âm báo, số hồi, thời gian hiện... ===== */
+var CD_MAC_DINH = { truocPhut: 10, kieuChuong: 'ding3', soHoi: 5, amLuong: 80, hienGiay: 60, docLan: 2, lanTrangGiay: 20 };
+var CD = (function(){
+  var o = {}, k; for (k in CD_MAC_DINH) o[k] = CD_MAC_DINH[k];
+  try { var l = JSON.parse(localStorage.getItem('tvCaiDat') || '{}'); for (k in l) if (k in o) o[k] = l[k]; } catch (e) {}
+  return o;
+})();
+function luuCaiDat(){ try { localStorage.setItem('tvCaiDat', JSON.stringify(CD)); } catch (e) {} }
 
 function thamSo(){
   var o = {};
@@ -360,13 +388,13 @@ function nhip(){
   // Qua nửa đêm: vẽ lại ngay (dòng HÔM NAY chuyển) rồi lấy dữ liệu mới vì tình trạng "quá hạn" do máy chủ tính theo ngày.
   if (D && n !== ngayDangVe){ var dau = !ngayDangVe; ngayDangVe = n; if (n <= D.cuoiTuan) veLai(); if (!dau) layDuLieu(); }
   var da = bayMs - batDau;
-  document.getElementById('tienDo').style.width = trang.length > 1 ? Math.min(100, da / DUNG_TRANG_MS * 100) + '%' : '0';
-  if (trang.length > 1 && da >= DUNG_TRANG_MS) hien(viTri + 1);
+  document.getElementById('tienDo').style.width = trang.length > 1 ? Math.min(100, da / (CD.lanTrangGiay * 1000) * 100) + '%' : '0';
+  if (trang.length > 1 && da >= CD.lanTrangGiay * 1000) hien(viTri + 1);
 }
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) layDuLieu(); });
 
 /* ===== BÁO TRƯỚC GIỜ HỌP =====
-   10 phút trước mỗi cuộc họp trong ngày: chuông (Web Audio) + khung lớn 60 giây + đọc tiếng Việt nếu trình duyệt có giọng
+   CD.truocPhut phút trước mỗi cuộc họp trong ngày: chuông CD.soHoi hồi (Web Audio) + khung lớn CD.hienGiay giây + đọc tiếng Việt nếu trình duyệt có giọng
    vi (Edge có; webOS chưa biết — chân trang báo). Trình duyệt chỉ cho phát tiếng sau MỘT lần bấm trên trang. */
 var daBao = {}, loaMo = false, actx = null;
 function giongViet(){
@@ -387,14 +415,26 @@ function moLoa(){
 }
 document.addEventListener('keydown', moLoa); document.addEventListener('click', moLoa);
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = capNhatLoa;
-function chuong(){
-  if (!actx) return;
-  [[880, 0], [660, .45], [880, .9]].forEach(function(n){
-    var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + n[1];
-    o.frequency.value = n[0]; o.connect(g); g.connect(actx.destination);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.4, t + .03); g.gain.exponentialRampToValueAtTime(.001, t + .4);
-    o.start(t); o.stop(t + .42);
-  });
+// Mỗi kiểu chuông = một "hồi"; phát lặp soHoi lần, cách nhau một quãng nghỉ. Tạo bằng Web Audio, không cần tệp âm thanh.
+var KIEU_CHUONG = {
+  ding3:    { ten: 'Chuông 3 nốt',        dai: 1.4, not: [[880, 0, .4, 'sine'], [660, .45, .4, 'sine'], [880, .9, .45, 'sine']] },
+  dingdong: { ten: 'Chuông cửa (ding-dong)', dai: 1.6, not: [[784, 0, .9, 'sine'], [523, .55, 1.0, 'sine']] },
+  truong:   { ten: 'Chuông báo (4 nốt lên)', dai: 1.4, not: [[523, 0, .3, 'triangle'], [659, .25, .3, 'triangle'], [784, .5, .3, 'triangle'], [1047, .75, .6, 'triangle']] },
+  bip:      { ten: 'Còi bíp',              dai: 1.1, not: [[1000, 0, .18, 'square'], [1000, .3, .18, 'square'], [1000, .6, .18, 'square']] }
+};
+function phatChuong(kieu, soHoi, amLuong){
+  if (!actx) return 0;
+  var k = KIEU_CHUONG[kieu] || KIEU_CHUONG.ding3, nghi = .6, t0 = actx.currentTime + .05;
+  var to = Math.max(0, Math.min(1, amLuong / 100)) * (k.not[0][3] === 'square' ? .18 : .45);
+  for (var h = 0; h < soHoi; h++){
+    k.not.forEach(function(n){
+      var o = actx.createOscillator(), g = actx.createGain(), t = t0 + h * (k.dai + nghi) + n[1];
+      o.type = n[3]; o.frequency.value = n[0]; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(to, t + .02); g.gain.exponentialRampToValueAtTime(.0005, t + n[2]);
+      o.start(t); o.stop(t + n[2] + .02);
+    });
+  }
+  return Math.round((soHoi * (k.dai + nghi)) * 1000);
 }
 // Viết tắt thường gặp ⇒ chữ đầy đủ để máy đọc cho đúng. Chỉ thay nguyên từ.
 var DOC_TAT = { 'P.KHQS':'Phòng Khoa học quân sự', 'PKHQS':'Phòng Khoa học quân sự', 'KHQS':'Khoa học quân sự',
@@ -417,16 +457,16 @@ function baoTruoc(s, con){
   document.getElementById('tbTp').textContent = s.tp || '';
   document.getElementById('tbTpDong').style.display = s.tp ? '' : 'none';
   var tb = document.getElementById('tb'); tb.classList.add('on');
-  clearTimeout(baoTruoc.hen); baoTruoc.hen = setTimeout(function(){ tb.classList.remove('on'); }, 60000);
+  clearTimeout(baoTruoc.hen); baoTruoc.hen = setTimeout(function(){ tb.classList.remove('on'); }, CD.hienGiay * 1000);
   if (!loaMo) return;
-  chuong();
+  var msChuong = phatChuong(CD.kieuChuong, CD.soHoi, CD.amLuong);
   var g = giongViet();
-  if (g && window.speechSynthesis){
+  if (g && window.speechSynthesis && CD.docLan > 0){
     speechSynthesis.cancel();
     var cau = cauDoc(s, con);
     setTimeout(function(){
-      [0, 1].forEach(function(){ var u = new SpeechSynthesisUtterance(cau); u.voice = g; u.lang = g.lang; u.rate = .95; speechSynthesis.speak(u); });
-    }, 1500);                                               // chờ chuông xong
+      for (var i = 0; i < CD.docLan; i++){ var u = new SpeechSynthesisUtterance(cau); u.voice = g; u.lang = g.lang; u.rate = .95; u.volume = CD.amLuong / 100; speechSynthesis.speak(u); }
+    }, msChuong + 300);                                     // chờ chuông xong
   }
 }
 function kiemBao(){
@@ -436,10 +476,39 @@ function kiemBao(){
     var khoa = s.t + '|' + s.nd;
     if (s.t.slice(0,10) !== homNay || daBao[khoa]) return;
     var con = (+s.t.slice(11,13) * 60 + +s.t.slice(14,16)) - phut;
-    if (con > 0 && con <= TRUOC_PHUT){ daBao[khoa] = 1; baoTruoc(s, con); }
+    if (con > 0 && con <= CD.truocPhut){ daBao[khoa] = 1; baoTruoc(s, con); }
   });
 }
 document.getElementById('tb').onclick = function(){ this.classList.remove('on'); if (window.speechSynthesis) speechSynthesis.cancel(); };
+/* ===== MÀN CÀI ĐẶT: mở bằng nút ⚙ ở chân trang (bấm bằng con trỏ điều khiển) ===== */
+var CD_TRUONG = [
+  ['truocPhut', 'Báo trước giờ họp', [[5, '5 phút'], [10, '10 phút'], [15, '15 phút'], [20, '20 phút'], [30, '30 phút']]],
+  ['kieuChuong', 'Âm báo', Object.keys(KIEU_CHUONG).map(function(k){ return [k, KIEU_CHUONG[k].ten]; })],
+  ['soHoi', 'Số hồi chuông', [[1, '1 hồi'], [2, '2 hồi'], [3, '3 hồi'], [5, '5 hồi'], [7, '7 hồi'], [10, '10 hồi']]],
+  ['amLuong', 'Âm lượng', [[30, '30%'], [50, '50%'], [80, '80%'], [100, '100%']]],
+  ['hienGiay', 'Khung thông báo hiện trong', [[30, '30 giây'], [60, '1 phút'], [120, '2 phút'], [300, '5 phút'], [600, '10 phút']]],
+  ['docLan', 'Đọc giọng nói (nếu máy có giọng Việt)', [[0, 'Không đọc'], [1, '1 lần'], [2, '2 lần'], [3, '3 lần']]],
+  ['lanTrangGiay', 'Mỗi trang lịch hiện trong', [[10, '10 giây'], [15, '15 giây'], [20, '20 giây'], [30, '30 giây'], [45, '45 giây']]]
+];
+function veCaiDat(){
+  document.getElementById('cdThan').innerHTML = CD_TRUONG.map(function(f){
+    return '<div class="cdd"><div class="cdn">' + esc(f[1]) + '</div><div class="cdc">' + f[2].map(function(o){
+      return '<button class="cdo' + (String(CD[f[0]]) === String(o[0]) ? ' on' : '') + '" data-k="' + f[0] + '" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</button>';
+    }).join('') + '</div></div>';
+  }).join('');
+}
+document.getElementById('cdThan').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('.cdo') : null; if (!b) return;
+  var k = b.getAttribute('data-k'), v = b.getAttribute('data-v');
+  CD[k] = typeof CD_MAC_DINH[k] === 'number' ? Number(v) : v;
+  veCaiDat();
+  if (k === 'kieuChuong' || k === 'amLuong'){ moLoa(); phatChuong(CD.kieuChuong, 1, CD.amLuong); }   // nghe ngay một hồi
+});
+document.getElementById('nutCaiDat').onclick = function(){ veCaiDat(); document.getElementById('caiDat').classList.add('on'); };
+document.getElementById('cdLuu').onclick = function(){ luuCaiDat(); document.getElementById('caiDat').classList.remove('on'); hien(viTri, true); };
+document.getElementById('cdThu').onclick = function(){ moLoa(); phatChuong(CD.kieuChuong, CD.soHoi, CD.amLuong); };
+document.getElementById('cdMacDinh').onclick = function(){ for (var k in CD_MAC_DINH) CD[k] = CD_MAC_DINH[k]; veCaiDat(); };
+
 /* ===== THANH CÔNG CỤ THỬ: chỉ hiện ở môi trường TEST (&m=test), để nhân viên kiểm tra khi lắp đặt ===== */
 function thuBaoHop(){
   var now = bayGio(), homNay = ngayCua(now), phut = now.getHours() * 60 + now.getMinutes();
