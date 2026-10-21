@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Trang vỏ Flow + bảng tin tivi (tĩnh) + trạm chuyển tiếp webhook Zalo OA (api/zalo.js)",
+  "scripts": { "test": "node tests/tram-zalo.test.mjs" },
+  "dependencies": { "@vercel/functions": "3.9.9" }
+}
